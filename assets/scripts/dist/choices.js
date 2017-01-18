@@ -1,4 +1,4 @@
-/*! choices.js v2.5.0 | (c) 2016 Josh Johnson | https://github.com/jshjohnson/Choices#readme */ 
+/*! choices.js v2.5.0 | (c) 2017 Josh Johnson | https://github.com/jshjohnson/Choices#readme */ 
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -170,6 +170,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        hiddenState: 'is-hidden',
 	        flippedState: 'is-flipped',
 	        loadingState: 'is-loading'
+	      },
+	      fuseOptions: {
+	        include: 'score'
 	      },
 	      callbackOnInit: null,
 	      callbackOnAddItem: null,
@@ -1386,11 +1389,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        var haystack = this.store.getChoicesFilteredBySelectable();
 	        var needle = newValue;
 	        var keys = (0, _utils.isType)('Array', this.config.sortFields) ? this.config.sortFields : [this.config.sortFields];
-	        var fuse = new _fuse2.default(haystack, {
-	          keys: keys,
-	          shouldSort: true,
-	          include: 'score'
-	        });
+	        var options = Object.assign(this.config.fuseOptions, { keys: keys });
+	        var fuse = new _fuse2.default(haystack, options);
+
 	        var results = fuse.search(needle);
 	        this.currentValue = newValue;
 	        this.highlightPosition = 0;
@@ -2613,6 +2614,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	;(function (global) {
 	  'use strict'
 
+	  /** @type {function(...*)} */
 	  function log () {
 	    console.log.apply(console, arguments)
 	  }
@@ -2673,9 +2675,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	    matchAllTokens: false,
 
 	    // Regex used to separate words when searching. Only applicable when `tokenize` is `true`.
-	    tokenSeparator: / +/g
+	    tokenSeparator: / +/g,
+
+	    // Minimum number of characters that must be matched before a result is considered a match
+	    minMatchCharLength: 1,
+
+	    // When true, the algorithm continues searching to the end of the input even if a perfect
+	    // match is found before the end of the same input.
+	    findAllMatches: false
 	  }
 
+	  /**
+	   * @constructor
+	   * @param {!Array} list
+	   * @param {!Object<string, *>} options
+	   */
 	  function Fuse (list, options) {
 	    var i
 	    var len
@@ -2685,24 +2699,26 @@ return /******/ (function(modules) { // webpackBootstrap
 	    this.list = list
 	    this.options = options = options || {}
 
-	    // Add boolean type options
-	    for (i = 0, keys = ['sort', 'shouldSort', 'verbose', 'tokenize'], len = keys.length; i < len; i++) {
-	      key = keys[i]
-	      this.options[key] = key in options ? options[key] : defaultOptions[key]
-	    }
-	    // Add all other options
-	    for (i = 0, keys = ['searchFn', 'sortFn', 'keys', 'getFn', 'include', 'tokenSeparator'], len = keys.length; i < len; i++) {
-	      key = keys[i]
-	      this.options[key] = options[key] || defaultOptions[key]
+	    for (key in defaultOptions) {
+	      if (!defaultOptions.hasOwnProperty(key)) {
+	        continue;
+	      }
+	      // Add boolean type options
+	      if (typeof defaultOptions[key] === 'boolean') {
+	        this.options[key] = key in options ? options[key] : defaultOptions[key];
+	      // Add all other options
+	      } else {
+	        this.options[key] = options[key] || defaultOptions[key]
+	      }
 	    }
 	  }
 
-	  Fuse.VERSION = '2.5.0'
+	  Fuse.VERSION = '2.6.0'
 
 	  /**
 	   * Sets a new list for Fuse to match against.
-	   * @param {Array} list
-	   * @return {Array} The newly set list
+	   * @param {!Array} list
+	   * @return {!Array} The newly set list
 	   * @public
 	   */
 	  Fuse.prototype.set = function (list) {
@@ -3105,6 +3121,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	   *
 	   * Licensed under the Apache License, Version 2.0 (the "License")
 	   * you may not use this file except in compliance with the License.
+	   *
+	   * @constructor
 	   */
 	  function BitapSearcher (pattern, options) {
 	    options = options || {}
@@ -3182,10 +3200,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  /**
 	   * Compute and return the result of the search
-	   * @param {String} text The text to search in
-	   * @return {Object} Literal containing:
-	   *                          {Boolean} isMatch Whether the text is a match or not
-	   *                          {Decimal} score Overall score for the match
+	   * @param {string} text The text to search in
+	   * @return {{isMatch: boolean, score: number}} Literal containing:
+	   *                          isMatch - Whether the text is a match or not
+	   *                          score - Overall score for the match
 	   * @public
 	   */
 	  BitapSearcher.prototype.search = function (text) {
@@ -3193,6 +3211,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var i
 	    var j
 	    var textLen
+	    var findAllMatches
 	    var location
 	    var threshold
 	    var bestLoc
@@ -3244,6 +3263,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      }
 	    }
 
+	    findAllMatches = options.findAllMatches
+
 	    location = options.location
 	    // Set starting location at beginning text and initialize the alphabet.
 	    textLen = text.length
@@ -3291,7 +3312,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      // Use the result from this iteration as the maximum for the next.
 	      binMax = binMid
 	      start = Math.max(1, location - binMid + 1)
-	      finish = Math.min(location + binMid, textLen) + this.patternLen
+	      if (findAllMatches) {
+	        finish = textLen;
+	      } else {
+	        finish = Math.min(location + binMid, textLen) + this.patternLen
+	      }
 
 	      // Initialize the bit array
 	      bitArr = Array(finish + 2)
@@ -3364,12 +3389,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        start = i
 	      } else if (!match && start !== -1) {
 	        end = i - 1
-	        matchedIndices.push([start, end])
+	        if ((end - start) + 1 >= this.options.minMatchCharLength) {
+	            matchedIndices.push([start, end])
+	        }
 	        start = -1
 	      }
 	    }
 	    if (matchMask[i - 1]) {
-	      matchedIndices.push([start, i - 1])
+	      if ((i-1 - start) + 1 >= this.options.minMatchCharLength) {
+	        matchedIndices.push([start, i - 1])
+	      }
 	    }
 	    return matchedIndices
 	  }
@@ -3390,7 +3419,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    global.Fuse = Fuse
 	  }
 
-	})(this)
+	})(this);
 
 
 /***/ },
@@ -4037,8 +4066,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (value == null) {
 	    return value === undefined ? undefinedTag : nullTag;
 	  }
-	  value = Object(value);
-	  return (symToStringTag && symToStringTag in value)
+	  return (symToStringTag && symToStringTag in Object(value))
 	    ? getRawTag(value)
 	    : objectToString(value);
 	}
