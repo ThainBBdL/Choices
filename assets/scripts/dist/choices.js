@@ -2407,7 +2407,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        },
 	        item: function item(data) {
 	          if (_this23.config.removeItemButton) {
-	            return (0, _utils.strToEl)('\n              <div class="' + classNames.item + ' ' + (data.highlighted ? classNames.highlightedState : '') + ' ' + (!data.disabled ? classNames.itemSelectable : '') + '" data-item data-id="' + data.id + '" data-value="' + data.value + '" ' + (data.active ? 'aria-selected="true"' : '') + ' ' + (data.disabled ? 'aria-disabled="true"' : '') + ' data-deletable>\n              ' + data.label + '<button class="' + classNames.button + '" data-button>Remove item</button>\n              </div>\n            ');
+	            return (0, _utils.strToEl)('\n              <div class="' + classNames.item + ' ' + (data.highlighted ? classNames.highlightedState : '') + ' ' + (!data.disabled ? classNames.itemSelectable : '') + '" data-item data-id="' + data.id + '" data-value="' + data.value + '" ' + (data.active ? 'aria-selected="true"' : '') + ' ' + (data.disabled ? 'aria-disabled="true"' : '') + ' data-deletable>\n              ' + data.label + '<button type="button" class="' + classNames.button + '" data-button>Remove item</button>\n              </div>\n            ');
 	          }
 	          return (0, _utils.strToEl)('\n          <div class="' + classNames.item + ' ' + (data.highlighted ? classNames.highlightedState : classNames.itemSelectable) + '"  data-item data-id="' + data.id + '" data-value="' + data.value + '" ' + (data.active ? 'aria-selected="true"' : '') + ' ' + (data.disabled ? 'aria-disabled="true"' : '') + '>\n            ' + data.label + '\n          </div>\n          ');
 	        },
